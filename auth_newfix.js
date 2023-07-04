@@ -264,8 +264,7 @@ function inicializeXMLRequest(credentials, options, showUI, errorMsg) {
     return xhr;
 }
 
-
-function loginWithCreds(options, userCred) {
+function loginWithCreds(options, userCred, showUI = false) {
     var xhr = inicializeXMLRequest(true, options, false, ERROR_LOGIN_FAIL);
 
     //ResponseEvents
@@ -280,7 +279,7 @@ function loginWithCreds(options, userCred) {
 
                 generateResponseOK(responseObject, options);
             } else {
-                generateResponseNOK(options, 1, ERROR_LOGIN_FAIL, xhr.status, false);
+                generateResponseNOK(options, 1, ERROR_LOGIN_FAIL, xhr.status, showUI);
             }
         }
     });
@@ -351,34 +350,38 @@ function authenticationFlow(options, skipRefreshToken) {
         // Also called when UIAuthN authentication expires
         logToServer("Type: authN");
 
-        var currentAuthentication = JSON.parse(options.request.currentAuthentication);
+        const requestCurrentAuthentication = options.request.currentAuthentication;
 
-        let now = new Date().getTime();
-        let isExpired = currentAuthentication.expirationDate <= now;
-        let username = currentAuthentication.username;
-        let password = currentAuthentication.password;
+        // CurrentAuthentication is only null for ZSO.
+        if (requestCurrentAuthentication != null) {
+            const currentAuthentication = JSON.parse(requestCurrentAuthentication);
+            const username = currentAuthentication.username;
+            const password = currentAuthentication.password;
 
-        logToServer("CALL: authN IS EXPIRED = " + isExpired + " | username = " + username + " | password = " + password + " | now = " + now + " | currentAuthentication.expirationDate = " + currentAuthentication.expirationDate + " | OPTIONS = " + JSON.stringify(options) + " | currentAuthentication = " + JSON.stringify(currentAuthentication));
+            logToServer("CALL: authN IS EXPIRED");
 
-        // if(isExpired && username != null && password != null) {
+            if (username != null && password != null) {
+                logToServer("CALL: authN IS EXPIRED! WILL REFRESH FOR | TOKENID = " + currentAuthentication.tokenId);
 
-        if (username != null && password != null) {
-            logToServer("CALL: authN IS EXPIRED! WILL REFRESH FOR | TOKENID = " + currentAuthentication.tokenId);
+                let userCred = {};
+                userCred.username = username;
+                userCred.password = password;
 
-            var userCred = {};
-            userCred.username = username;
-            userCred.password = password;
+                // Perform re-authentication
+                loginWithCreds(options, userCred, true);
 
-            // TODO: IS THERE ANOTHER WAY TO REFRESH THE AUTHENTICATION
+                logToServer("CALL: authN EXP IS REFRESHED");
+            } else {
+                // Show error and default to prompt the user for credentials
+                generateResponseNOK(options, 1, ERROR_LOGIN_FAIL, null, true);
 
-            // TODO: TEST = SHOW UI IN CASE IT FAILS 
-            loginWithCreds(options, userCred, true);
+                logToServer("CALL: authN EXP IS EXPIRED Error! Username or Password not found!");
+            }
 
-            logToServer("CALL: authN EXP IS REFRESHED");
             return;
         }
 
-        logToServer("CALL: authN IS NOOT EXPIRED");
+        logToServer("CALL: authN IS NOT EXPIRED");
 
         xhr = inicializeXMLRequest(true, options, true, null);
         //ResponseEvents  
