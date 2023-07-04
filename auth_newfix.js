@@ -88,7 +88,7 @@ function getURLFromLightHouse(options, callback) {
     var signal, pxtv_version, xhr;
 
     signal = deviceToken; //signal="apple-tv-signal-test";
-    logToServer("LH SIGNAL: " + signal);
+    logToServer("CALL: getURLFromLightHouse LH SIGNAL: " + signal);
     pxtv_version = "appleTV/-/appleTV/-/-";//format: {PxTV client product}/{PxTV client version}/{platform-os}/{devicetype}/OSversion | "STB/V100R001C00B139/STB/V6/-"
 
     if (typeof signal === 'undefined' || signal === null || signal === '') {
@@ -100,6 +100,8 @@ function getURLFromLightHouse(options, callback) {
         }
     }
 
+    logToServer("CALL: getURLFromLightHouse LH SIGNAL V2 = " + signal);
+
     var lightHouseResponse = function (responseObject, options, callback) {
         var env, baseURL;
         if (typeof responseObject != 'undefined' && responseObject != null) {
@@ -108,11 +110,15 @@ function getURLFromLightHouse(options, callback) {
         }
         endpoints = loadVariables(env, baseURL);
         // options.callback(true, null);
+
+        logToServer("CALL: getURLFromLightHouse END | baseURL = " + baseURL + " | env = " + env + " | options = " + JSON.stringify(options));
         callback(options, false);
     };
 
+    logToServer("CALL: getURLFromLightHouse START");
+
     xhr = new XMLHttpRequest();
-    xhr.open('GET', lightHouseURL.replace("signal_type_type", signal_type).replace("signal_signal", signal), true);
+    xhr.open('GET', lightHouseURL.replace("signal_type_type", signal_type).replace("signal_signal", signal), false);
     xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
     xhr.setRequestHeader("X-PXTV-VERSION", pxtv_version);
     xhr.addEventListener("timeout", function () { lightHouseResponse(null, options, callback); });
@@ -133,8 +139,8 @@ function getURLFromLightHouse(options, callback) {
 function generateResponseOK(responseObject, options) {
     var responsePayload;
     responsePayload = new App.ResponsePayload();
-    try {
 
+    try {
         if (options.request.requestType == "logout") {
             responsePayload.logout = responseObject;
         } else if (options.request.requestType == "userMetadata") {
@@ -150,29 +156,29 @@ function generateResponseOK(responseObject, options) {
             responsePayload.authN = JSON.stringify(aux);
             responsePayload.expirationDate = aux.expirationDate;
 
-        } else {
+            logToServer("CALL: generateResponseOK TYPE = userMetadata | RESPONSE OBJ = " + JSON.stringify(responseObject) + " | expiry date = " + expirationDate + " | tokenID = " + aux.tokenId);
+        } else { // UIAuthN and AuthN
             // var expirationDate = (new Date()).setSeconds((new Date()).getSeconds() + 3); //set expiration date 3Months from now 
-            //var expirationDate = (new Date()).setMonth((new Date()).getMonth() + 3); //set expiration date 3Months from now
-
-            const newDate = new Date()
-            const expirationDate = newDate.setMinutes(newDate.getMinutes() + 2); // TEST WITH 2 MIN
-
+            var expirationDate = (new Date()).setMonth((new Date()).getMonth() + 3); //set expiration date 3Months from now 
             responseObject.expirationDate = expirationDate;
             responsePayload.authN = JSON.stringify(responseObject);
             responsePayload.username = responseObject.username;
             responsePayload.expirationDate = expirationDate;
             responsePayload.subscriptions = [pixxAppSubscription()];
+
+            logToServer("CALL: generateResponseOK TYPE = OTHER | RESPONSE OBJ = " + JSON.stringify(responseObject) + " | expiry date = " + expirationDate + " | tokenID = " + responseObject.tokenId);
         }
 
         responsePayload.authenticationScheme = "API";
         responsePayload.statusCode = "200";
         responsePayload.expectedAction = 1;
 
-        logToServer("=====RESPONSE OK ====");
+        logToServer("CALL: generateResponseOK = " + JSON.stringify(options) + " | PAYLOAD = " + JSON.stringify(responseObject));
+
         options.callback(responsePayload, null);
 
     } catch (ex) {
-        logToServer("Exception: " + ex);
+        logToServer("CALL: generateResponseOK Exception: " + ex);
         generateResponseNOK(options, 4, ERROR_GENERIC + '(code: 6)', null, false);
     }
 }
@@ -192,8 +198,10 @@ function generateResponseNOK(options, errorCode, errorMsg, statusCode, showUI) {
         responsePayload.authenticationScheme = "API";
         responsePayload.expectedAction = 2;
 
-        logToServer("Endpoint return error" + responsePayload.statusCode);
+        logToServer("CALL: generateResponseNOT OK | Endpoint return error = " + responsePayload.statusCode);
     }
+
+    logToServer("CALL: generateResponseNOT OK = " + JSON.stringify(options) + " | PAYLOAD = " + JSON.stringify(responsePayload) + " | ERROR = " + errorMsg);
 
     options.callback(responsePayload, error);
 
@@ -216,6 +224,9 @@ function generateRandomString(length) {
  * XML Authentication Context 
  */
 function showAuthenticationContext() {
+
+    logToServer("CALL: showAuthenticationContext")
+
     var parser = new DOMParser();
     var xmlString = '<document>' +
         '<authenticationTemplate>' +
@@ -263,6 +274,10 @@ function loginWithCreds(options, userCred) {
             if (xhr.status == 200) {
                 var responseObject = JSON.parse(xhr.response);
                 responseObject.username = userCred.username;
+                responseObject.password = userCred.password;
+
+                logToServer("CALL: loginWithCreds FINAL RESP = " + JSON.stringify(responseObject));
+
                 generateResponseOK(responseObject, options);
             } else {
                 generateResponseNOK(options, 1, ERROR_LOGIN_FAIL, xhr.status, false);
@@ -270,7 +285,7 @@ function loginWithCreds(options, userCred) {
         }
     });
 
-    xhr.open("POST", endpoints.loginURL);
+    xhr.open("POST", endpoints.loginURL, false);
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.setRequestHeader("X-OpenAM-Username", userCred.username);
     xhr.setRequestHeader("X-OpenAM-Password", userCred.password);
@@ -280,6 +295,9 @@ function loginWithCreds(options, userCred) {
 
 
 function pickxRefreshToken(options, clientID, refreshToken) {
+
+    logToServer("CALL: pickxRefreshToken = " + JSON.stringify(options) + " | clientID = " + clientID + " | refreshToken = " + refreshToken);
+
     var xhr, data;
     xhr = inicializeXMLRequest(true, options, false, null);
     data = 'grant_type=refresh_token' +
@@ -293,15 +311,21 @@ function pickxRefreshToken(options, clientID, refreshToken) {
             //Saving response on Metadata to send to APP
             if (xhr.status === 200) {
                 var finalResponse = JSON.parse(xhr.response);
+
+                logToServer("CALL: pickxRefreshToken FINAL RESP = " + JSON.stringify(finalResponse));
+
                 generateResponseOK(finalResponse, options);
             } else {
-                logToServer("Error refreshing Token");
+                logToServer("CALL: pickxRefreshToken = Error refreshing Token");
                 // generateResponseNOK(options, 4, ERROR_GENERIC, xhr.status, true);
                 authenticationFlow(options, true);
             }
 
         }
     });
+
+    logToServer("CALL: pickxRefreshToken CALL START | ENDPOINT = " + endpoints.acccessTokenURL + " | data = " + data);
+
     xhr.send(data);
 }
 
@@ -310,6 +334,9 @@ function pickxRefreshToken(options, clientID, refreshToken) {
 * Will decide the flow based on the requestType
 */
 function authenticationFlow(options, skipRefreshToken) {
+
+    logToServer("CALL: authenticationFlow | requestType = " + options.request.requestType + " | options = " + JSON.stringify(options) + " | skipRefreshToken = " + skipRefreshToken)
+
     var xhr;
     //SSO 
     if (options.request.requestType == "UIAuthN") {
@@ -320,8 +347,38 @@ function authenticationFlow(options, skipRefreshToken) {
         userCred.password = getActiveDocument().getElementById("password").getFeature("Keyboard").text;
         loginWithCreds(options, userCred);
     } else if (options.request.requestType == "authN") {
-        //ZSO ->  AM Module Authentication 
+        // ZSO ->  AM Module Authentication
+        // Also called when UIAuthN authentication expires
         logToServer("Type: authN");
+
+        var currentAuthentication = JSON.parse(options.request.currentAuthentication);
+
+        let now = new Date().getTime();
+        let isExpired = currentAuthentication.expirationDate <= now;
+        let username = currentAuthentication.username;
+        let password = currentAuthentication.password;
+
+        logToServer("CALL: authN IS EXPIRED = " + isExpired + " | username = " + username + " | password = " + password + " | now = " + now + " | currentAuthentication.expirationDate = " + currentAuthentication.expirationDate + " | OPTIONS = " + JSON.stringify(options) + " | currentAuthentication = " + JSON.stringify(currentAuthentication));
+
+        // if(isExpired && username != null && password != null) {
+
+        if (username != null && password != null) {
+            logToServer("CALL: authN IS EXPIRED! WILL REFRESH FOR | TOKENID = " + currentAuthentication.tokenId);
+
+            var userCred = {};
+            userCred.username = username;
+            userCred.password = password;
+
+            // TODO: IS THERE ANOTHER WAY TO REFRESH THE AUTHENTICATION
+
+            // TODO: TEST = SHOW UI IN CASE IT FAILS 
+            loginWithCreds(options, userCred, true);
+
+            logToServer("CALL: authN EXP IS REFRESHED");
+            return;
+        }
+
+        logToServer("CALL: authN IS NOOT EXPIRED");
 
         xhr = inicializeXMLRequest(true, options, true, null);
         //ResponseEvents  
@@ -344,6 +401,7 @@ function authenticationFlow(options, skipRefreshToken) {
     } else if (options.request.requestType == "userMetadata") {
         //Pickx ->  Pickx Authentication 
         logToServer("Type: userMetadata");
+
         var data, code_challenge, redirect_uri, clientId, currentAuthentication, token, cookie, scopes;
         currentAuthentication = JSON.parse(options.request.currentAuthentication);
 
@@ -353,6 +411,8 @@ function authenticationFlow(options, skipRefreshToken) {
         }
 
         token = currentAuthentication.tokenId;
+
+        logToServer("CALL: userMetadata = " + JSON.stringify(options) + " | currentAuthentication = " + JSON.stringify(currentAuthentication));
 
         if (endpoints.environment == 'STAGING') {
             clientId = cliendIdStaging;
@@ -373,14 +433,8 @@ function authenticationFlow(options, skipRefreshToken) {
                 logToServer("Exception: " + ex);
             }
         } else {
-
-
-            try {
-                scopes = "metadata pxtv_avr pxtv_broker_csc pxtv_broker_bta pxtv_push pxtv_replay";
-            } catch (ex) {
-
-            }
-
+            scopes = "metadata pxtv_avr pxtv_broker_csc pxtv_broker_bta pxtv_push pxtv_replay";
+ 
             xhr = inicializeXMLRequest(true, options, false, null);
 
             code_challenge = generateRandomString(50);
@@ -435,6 +489,8 @@ function authenticationFlow(options, skipRefreshToken) {
 
             });
 
+            logToServer("CALL: userMetadata AUTHORIZE WITH DATA = " + data);
+
             xhr.open("POST", endpoints.auhtorizeURL, false);
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
             xhr.setRequestHeader("token", cookie);
@@ -451,8 +507,9 @@ function authenticationFlow(options, skipRefreshToken) {
                 }
             }
         });
+
         //logout
-        xhr.open("POST", endpoints.logoutURL);
+        xhr.open("POST", endpoints.logoutURL, false);
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.setRequestHeader("Cache-Control", "no-cache");
         xhr.setRequestHeader("Accept-API-Version", "resource=3.1, protocol=1.0");
