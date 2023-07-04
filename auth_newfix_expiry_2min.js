@@ -159,7 +159,12 @@ function generateResponseOK(responseObject, options) {
             logToServer("CALL: generateResponseOK TYPE = userMetadata | RESPONSE OBJ = " + JSON.stringify(responseObject) + " | expiry date = " + expirationDate + " | tokenID = " + aux.tokenId);
         } else { // UIAuthN and AuthN
             // var expirationDate = (new Date()).setSeconds((new Date()).getSeconds() + 3); //set expiration date 3Months from now 
-            var expirationDate = (new Date()).setMonth((new Date()).getMonth() + 3); //set expiration date 3Months from now 
+            //var expirationDate = (new Date()).setMonth((new Date()).getMonth() + 3); //set expiration date 3Months from now
+
+
+            const newDate = new Date()
+            const expirationDate = newDate.setMinutes(newDate.getMinutes() + 2); // TEST WITH 2 MIN
+
             responseObject.expirationDate = expirationDate;
             responsePayload.authN = JSON.stringify(responseObject);
             responsePayload.username = responseObject.username;
