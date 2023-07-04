@@ -358,7 +358,7 @@ function authenticationFlow(options, skipRefreshToken) {
             const username = currentAuthentication.username;
             const password = currentAuthentication.password;
 
-            logToServer("CALL: authN IS EXPIRED");
+            logToServer("CALL: authN IS re-authentication request (EXPIRED)");
 
             if (username != null && password != null) {
                 logToServer("CALL: authN IS EXPIRED! WILL REFRESH FOR | TOKENID = " + currentAuthentication.tokenId);
@@ -381,7 +381,7 @@ function authenticationFlow(options, skipRefreshToken) {
             return;
         }
 
-        logToServer("CALL: authN IS NOT EXPIRED");
+        logToServer("CALL: authN ZSO request");
 
         xhr = inicializeXMLRequest(true, options, true, null);
         //ResponseEvents  
@@ -397,7 +397,7 @@ function authenticationFlow(options, skipRefreshToken) {
             }
         });
         //Will use IP Adress to authenticate 
-        xhr.open("POST", endpoints.loginByIpURL);
+        xhr.open("POST", endpoints.loginByIpURL, false);
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.setRequestHeader("Accept-API-Version", "resource=2.0, protocol=1.0");
         xhr.send(null);
