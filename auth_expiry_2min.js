@@ -186,7 +186,6 @@ function generateResponseNOK(options, errorCode, errorMsg, statusCode, showUI) {
     error = new Error();
     error.code = errorCode;
     error.message = errorMsg;
-
     if (showUI || (options.request.requestType == "userMetadata" && statusCode == 401)) {
         responsePayload = new App.ResponsePayload();
         responsePayload.statusCode = statusCode != null ? statusCode : "401";

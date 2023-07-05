@@ -156,7 +156,7 @@ function generateResponseOK(responseObject, options) {
             responsePayload.authN = JSON.stringify(aux);
             responsePayload.expirationDate = aux.expirationDate;
 
-            logToServer("CALL: generateResponseOK TYPE = userMetadata | RESPONSE OBJ = " + JSON.stringify(responseObject) + " | expiry date = " + expirationDate + " | tokenID = " + aux.tokenId);
+            logToServer("CALL: generateResponseOK TYPE = userMetadata | RESPONSE OBJ = " + JSON.stringify(responseObject) + " | expiry date = " + responsePayload.expirationDate + " | tokenID = " + aux.tokenId);
         } else { // UIAuthN and AuthN
             // var expirationDate = (new Date()).setSeconds((new Date()).getSeconds() + 3); //set expiration date 3Months from now 
             //var expirationDate = (new Date()).setMonth((new Date()).getMonth() + 3); //set expiration date 3Months from now
